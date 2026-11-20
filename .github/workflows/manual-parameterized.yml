@@ -1,0 +1,44 @@
+name: Parameterized Manual Workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      application_name:
+        description: 'Application name'
+        required: true
+        type: string
+      run_validation:
+        description: 'Run validation step'
+        required: true
+        type: boolean
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      validation_status: ${{ steps.run_validation_step.outputs.validation_status }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Print inputs and determine validation status
+        id: run_validation_step
+        run: |
+          echo "Application Name: ${{ inputs.application_name }}"
+          echo "Run Validation: ${{ inputs.run_validation }}"
+          if [ "${{ inputs.run_validation }}" = "true" ]; then
+            echo "Validation succeeded for ${{ inputs.application_name }}"
+            echo "validation_status=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "Validation skipped for ${{ inputs.application_name }}"
+            echo "validation_status=skipped" >> "$GITHUB_OUTPUT"
+          fi
+
+  summary:
+    needs: validate
+    if: needs.validate.outputs.validation_status == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print execution summary
+        run: |
+          echo "Summary: Validation passed for ${{ inputs.application_name }} (status: ${{ needs.validate.outputs.validation_status }})."
